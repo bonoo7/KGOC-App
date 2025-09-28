@@ -14,7 +14,6 @@ import {
 import { getUserRole, hasPermission, PERMISSIONS, ROLE_INFO } from '../services/rolesService';
 import { ProtectedComponent } from '../components/RoleBasedAccess';
 import WellNumberInput from '../components/WellNumberInput';
-import OilSeparatorDiagram from '../components/OilSeparatorDiagram';
 import { 
   createWellTest, 
   getAllWellTests, 
@@ -26,17 +25,23 @@ import {
 const WellTestScreen = ({ user, navigation }) => {
   const [userRole, setUserRole] = useState(null);
   const [wellTests, setWellTests] = useState([]);
-  const [allWellTests, setAllWellTests] = useState([]);
+  const [allWellTests, setAllWellTests] = useState([]); // For suggestions
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedWell, setSelectedWell] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Tab state for main categories
   const [activeTab, setActiveTab] = useState('readings');
+
+  // Well number selection state
   const [selectedWellNumber, setSelectedWellNumber] = useState('');
+
+  // Interactive Separator state (for maintenance tab)
+  const [selectedReportParts, setSelectedReportParts] = useState([]);
+  const [reportNotes, setReportNotes] = useState('');
   const [reportWellData, setReportWellData] = useState(null);
-  const [showSeparatorDiagram, setShowSeparatorDiagram] = useState(false);
-  const [selectedSeparatorParts, setSelectedSeparatorParts] = useState([]);
 
   // Form state for new/edit well test
   const [formData, setFormData] = useState({
@@ -57,6 +62,21 @@ const WellTestScreen = ({ user, navigation }) => {
     notes: ''
   });
 
+  // Artificial Lift Types
+  const artificialLiftTypes = [
+    'Natural Flow',
+    'Sucker Rod Pump',
+    'Electric Submersible Pump (ESP)',
+    'Progressive Cavity Pump (PCP)',
+    'Plunger Lift',
+    'Gas Lift',
+    'Jet Pump',
+    'Hydraulic Pump',
+    'Beam Pump',
+    'Intermittent Gas Lift',
+    'Continuous Gas Lift'
+  ];
+
   useEffect(() => {
     loadUserRole();
     loadAllWellTestsForSuggestions();
@@ -76,6 +96,7 @@ const WellTestScreen = ({ user, navigation }) => {
     }
   };
 
+  // Load all well tests for suggestions in the well number input
   const loadAllWellTestsForSuggestions = async () => {
     try {
       const result = await getAllWellTests();
@@ -88,6 +109,7 @@ const WellTestScreen = ({ user, navigation }) => {
     }
   };
 
+  // Load well tests for selected well number only
   const loadWellTestsForWell = async (wellNumber) => {
     if (!wellNumber.trim()) {
       setWellTests([]);
@@ -112,6 +134,7 @@ const WellTestScreen = ({ user, navigation }) => {
         setWellTests(filteredTests);
         console.log('✅ Well tests loaded for well:', wellNumber, filteredTests.length);
       } else {
+        console.error('Failed to load well tests:', result.message);
         Alert.alert('Error', 'Failed to load well tests');
       }
     } catch (error) {
@@ -137,6 +160,152 @@ const WellTestScreen = ({ user, navigation }) => {
     if (selectedWellNumber && tab === 'readings') {
       loadWellTestsForWell(selectedWellNumber);
     }
+    
+    // If switching to maintenance and we have report data, keep it
+    if (tab === 'maintenance' && reportWellData) {
+      // Report data is already set
+    }
+  };
+
+  // Interactive Separator functions for maintenance tab
+  const importantParts = [
+    {
+      id: 'basic_info',
+      title: 'Basic Information',
+      description: 'Well number, type, API, and test date',
+      fields: ['wellNumber', 'wellType', 'api', 'testDate', 'artificialLiftType'],
+      icon: '📋'
+    },
+    {
+      id: 'production_data',
+      title: 'Production Data',
+      description: 'Flow rates, gas rates, and water cut',
+      fields: ['flowRate', 'gasRate', 'waterCut'],
+      icon: '⛽'
+    },
+    {
+      id: 'chemical_analysis',
+      title: 'Chemical Analysis',
+      description: 'H₂S, CO₂, and salinity levels',
+      fields: ['h2s', 'co2', 'salinity'],
+      icon: '🧪'
+    },
+    {
+      id: 'wellhead_parameters',
+      title: 'Wellhead Parameters',
+      description: 'Pressure, temperature, and choke size',
+      fields: ['wellheadPressure', 'wellheadTemperature', 'chokeSize'],
+      icon: '🔧'
+    },
+    {
+      id: 'operational_notes',
+      title: 'Operational Notes',
+      description: 'Additional notes and observations',
+      fields: ['notes'],
+      icon: '📝'
+    },
+    {
+      id: 'creation_info',
+      title: 'Creation Information',
+      description: 'Created by, role, and timestamp',
+      fields: ['createdByName', 'userRole', 'createdAt'],
+      icon: '👤'
+    }
+  ];
+
+  const togglePartSelection = (partId) => {
+    const updatedSelection = selectedReportParts.includes(partId)
+      ? selectedReportParts.filter(id => id !== partId)
+      : [...selectedReportParts, partId];
+    
+    setSelectedReportParts(updatedSelection);
+  };
+
+  const selectAllParts = () => {
+    setSelectedReportParts(importantParts.map(part => part.id));
+  };
+
+  const clearAllParts = () => {
+    setSelectedReportParts([]);
+  };
+
+  const handleGenerateFinalReport = () => {
+    if (selectedReportParts.length === 0) {
+      Alert.alert('No Selection', 'Please select at least one part for the report.');
+      return;
+    }
+
+    if (!reportWellData) {
+      Alert.alert('No Data', 'Please select a well test to generate report from.');
+      return;
+    }
+
+    const selectedData = generateSelectedData();
+    
+    Alert.alert(
+      'Report Generated',
+      `Report for ${reportWellData.wellNumber} with ${selectedReportParts.length} sections has been generated.`,
+      [
+        { text: 'View Report', onPress: () => console.log('View report:', selectedData) },
+        { text: 'Export', onPress: () => console.log('Export report:', selectedData) },
+        { text: 'OK' }
+      ]
+    );
+  };
+
+  const generateSelectedData = () => {
+    const selectedData = {};
+    
+    selectedReportParts.forEach(partId => {
+      const part = importantParts.find(p => p.id === partId);
+      if (part && reportWellData) {
+        selectedData[partId] = {
+          title: part.title,
+          icon: part.icon,
+          data: {}
+        };
+        
+        part.fields.forEach(field => {
+          if (reportWellData[field] !== undefined && reportWellData[field] !== null && reportWellData[field] !== '') {
+            selectedData[partId].data[field] = reportWellData[field];
+          }
+        });
+      }
+    });
+    
+    return selectedData;
+  };
+
+  const getFieldDisplayName = (fieldName) => {
+    const fieldNames = {
+      wellNumber: 'Well Number',
+      wellType: 'Well Type',
+      api: 'API',
+      testDate: 'Test Date',
+      artificialLiftType: 'Artificial Lift Type',
+      flowRate: 'Flow Rate (bbl/day)',
+      gasRate: 'Gas Rate (scf/day)',
+      waterCut: 'Water Cut (%)',
+      h2s: 'H₂S (ppm)',
+      co2: 'CO₂ (ppm)',
+      salinity: 'Salinity (ppm)',
+      wellheadPressure: 'Wellhead Pressure (psi)',
+      wellheadTemperature: 'Wellhead Temperature (°F)',
+      chokeSize: 'Choke Size (inches)',
+      notes: 'Notes',
+      createdByName: 'Created By',
+      userRole: 'User Role',
+      createdAt: 'Created At'
+    };
+    return fieldNames[fieldName] || fieldName;
+  };
+
+  const getFieldValue = (fieldName, value) => {
+    if (fieldName === 'createdAt' && value) {
+      const date = value.toDate ? value.toDate() : new Date(value);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+    return value?.toString() || 'N/A';
   };
 
   const resetForm = () => {
@@ -221,6 +390,7 @@ const WellTestScreen = ({ user, navigation }) => {
           await loadWellTestsForWell(selectedWellNumber);
         }
         
+        // Refresh suggestions
         await loadAllWellTestsForSuggestions();
       } else {
         Alert.alert('Error', result.message || 'Failed to save well test');
@@ -292,19 +462,8 @@ const WellTestScreen = ({ user, navigation }) => {
 
   const handleGenerateReport = (well) => {
     setReportWellData(well);
-    setActiveTab('maintenance');
-  };
-
-  const handleSeparatorSelection = (selectionData) => {
-    setSelectedSeparatorParts(selectionData.selectedParts);
-    Alert.alert(
-      'Separator Components Added',
-      `${selectionData.selectedParts.length} components have been added to your report.`,
-      [
-        { text: 'View Report', onPress: () => console.log('Selected components:', selectionData.selectedData) },
-        { text: 'OK' }
-      ]
-    );
+    setActiveTab('maintenance'); // Switch to maintenance tab
+    // Auto-scroll to maintenance content would be nice but not essential
   };
 
   const renderWellTestItem = ({ item }) => (
@@ -442,6 +601,8 @@ const WellTestScreen = ({ user, navigation }) => {
               </Text>
             </TouchableOpacity>
           </View>
+
+          </View>
         </View>
 
         {/* Content based on selected tab */}
@@ -524,69 +685,66 @@ const WellTestScreen = ({ user, navigation }) => {
             <ScrollView style={styles.maintenanceContent}>
               {!reportWellData ? (
                 <View style={styles.reportBuilderIntro}>
-                  <Text style={styles.emptyStateIcon}>🛢️</Text>
-                  <Text style={styles.emptyStateText}>Interactive Oil Separator</Text>
+                  <Text style={styles.emptyStateIcon}>📊</Text>
+                  <Text style={styles.emptyStateText}>Interactive Report Builder</Text>
                   <Text style={styles.emptyStateSubtext}>
-                    Select separator components to include in your well test reports
+                    This is where you build custom reports from well test data
                   </Text>
                   
-                  <TouchableOpacity
-                    style={styles.openDiagramButton}
-                    onPress={() => setShowSeparatorDiagram(true)}
-                  >
-                    <Text style={styles.openDiagramButtonText}>Open Separator Diagram</Text>
-                  </TouchableOpacity>
-                  
+                  {/* Separator Blueprint/Instructions */}
                   <View style={styles.blueprintContainer}>
-                    <Text style={styles.blueprintTitle}>🔧 Oil Separator Components:</Text>
+                    <Text style={styles.blueprintTitle}>🔧 How to Use the Report Builder:</Text>
                     
-                    <View style={styles.componentsList}>
-                      <View style={styles.componentCategory}>
-                        <Text style={styles.categoryTitle}>🔵 Flow Components</Text>
-                        <Text style={styles.categoryDesc}>Inlet Nozzle, Oil/Gas/Water Outlets</Text>
-                      </View>
-                      
-                      <View style={styles.componentCategory}>
-                        <Text style={styles.categoryTitle}>📊 Instrumentation</Text>
-                        <Text style={styles.categoryDesc}>Level Indicators, Pressure & Temperature Gauges</Text>
-                      </View>
-                      
-                      <View style={styles.componentCategory}>
-                        <Text style={styles.categoryTitle}>⚠️ Safety Systems</Text>
-                        <Text style={styles.categoryDesc}>Relief Valves, Emergency Shutdown</Text>
-                      </View>
-                      
-                      <View style={styles.componentCategory}>
-                        <Text style={styles.categoryTitle}>🕸️ Internal Components</Text>
-                        <Text style={styles.categoryDesc}>Demister Pads, Weir Plates, Inlet Diverters</Text>
-                      </View>
+                    <View style={styles.instructionStep}>
+                      <Text style={styles.stepNumber}>1.</Text>
+                      <Text style={styles.stepText}>Go to "Well Test Readings" tab and select a well</Text>
                     </View>
                     
                     <View style={styles.instructionStep}>
-                      <Text style={styles.stepNumber}>💡</Text>
-                      <Text style={styles.stepText}>Click "Open Separator Diagram" to view and select components interactively</Text>
+                      <Text style={styles.stepNumber}>2.</Text>
+                      <Text style={styles.stepText}>Click the purple "Report" button on any well test</Text>
+                    </View>
+                    
+                    <View style={styles.instructionStep}>
+                      <Text style={styles.stepNumber}>3.</Text>
+                      <Text style={styles.stepText}>Come back here to build your custom report</Text>
+                    </View>
+
+                    {/* Available Sections Preview */}
+                    <View style={styles.sectionsPreview}>
+                      <Text style={styles.previewTitle}>📋 Available Report Sections:</Text>
+                      {importantParts.map(part => (
+                        <View key={part.id} style={styles.sectionPreviewItem}>
+                          <Text style={styles.sectionIcon}>{part.icon}</Text>
+                          <View style={styles.sectionPreviewInfo}>
+                            <Text style={styles.sectionPreviewTitle}>{part.title}</Text>
+                            <Text style={styles.sectionPreviewDesc}>{part.description}</Text>
+                          </View>
+                        </View>
+                      ))}
                     </View>
                   </View>
                 </View>
               ) : (
                 <View style={styles.reportBuilderContainer}>
+                  {/* Header */}
                   <View style={styles.reportBuilderHeader}>
                     <Text style={styles.reportBuilderTitle}>
                       📊 Report Builder - {reportWellData.wellNumber}
                     </Text>
                     <Text style={styles.reportBuilderSubtitle}>
-                      Include separator components in your well test report
+                      Select important parts to include in your report
                     </Text>
                   </View>
 
+                  {/* Quick Actions */}
                   <View style={styles.quickActions}>
-                    <TouchableOpacity
-                      style={styles.separatorButton}
-                      onPress={() => setShowSeparatorDiagram(true)}
-                    >
-                      <Text style={styles.separatorButtonText}>🛢️ Oil Separator Diagram</Text>
+                    <TouchableOpacity style={styles.quickActionButton} onPress={selectAllParts}>
+                      <Text style={styles.quickActionText}>Select All</Text>
                     </TouchableOpacity>
-                    
+                    <TouchableOpacity style={styles.quickActionButton} onPress={clearAllParts}>
+                      <Text style={styles.quickActionText}>Clear All</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity 
                       style={styles.clearReportButton} 
                       onPress={() => setReportWellData(null)}
@@ -595,27 +753,17 @@ const WellTestScreen = ({ user, navigation }) => {
                     </TouchableOpacity>
                   </View>
 
-                  {selectedSeparatorParts.length > 0 && (
-                    <View style={styles.selectedPartsContainer}>
-                      <Text style={styles.selectedPartsTitle}>
-                        Selected Separator Components ({selectedSeparatorParts.length})
-                      </Text>
-                      <View style={styles.selectedPartsList}>
-                        {selectedSeparatorParts.map((partId, index) => (
-                          <View key={partId} style={styles.selectedPartChip}>
-                            <Text style={styles.selectedPartText}>{partId.replace('_', ' ')}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-
+                  {/* Generate Button */}
                   <TouchableOpacity
-                    style={styles.generateReportButton}
-                    onPress={() => Alert.alert('Success', `Report generated for ${reportWellData.wellNumber} with ${selectedSeparatorParts.length} separator components`)}
+                    style={[
+                      styles.generateReportButton,
+                      selectedReportParts.length === 0 && styles.generateReportButtonDisabled
+                    ]}
+                    onPress={handleGenerateFinalReport}
+                    disabled={selectedReportParts.length === 0}
                   >
                     <Text style={styles.generateReportButtonText}>
-                      Generate Report
+                      Generate Report ({selectedReportParts.length} sections)
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -624,7 +772,7 @@ const WellTestScreen = ({ user, navigation }) => {
           )}
         </View>
 
-        {/* Add/Edit Modal */}
+        {/* Add/Edit Modal with all fields */}
         <Modal
           visible={showAddModal}
           animationType="slide"
@@ -648,6 +796,7 @@ const WellTestScreen = ({ user, navigation }) => {
             </View>
 
             <ScrollView style={styles.modalContent}>
+              {/* Basic Information */}
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Basic Information</Text>
                 
@@ -658,6 +807,48 @@ const WellTestScreen = ({ user, navigation }) => {
                   onChangeText={(value) => handleInputChange('wellNumber', value)}
                   placeholder="Enter well number"
                 />
+
+                <Text style={styles.label}>Well Type</Text>
+                <View style={styles.pickerContainer}>
+                  {['Oil', 'Gas', 'Water', 'Injection'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.pickerOption,
+                        formData.wellType === type && styles.pickerOptionSelected
+                      ]}
+                      onPress={() => handleInputChange('wellType', type)}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        formData.wellType === type && styles.pickerOptionTextSelected
+                      ]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.label}>Artificial Lift Type</Text>
+                <View style={styles.pickerContainer}>
+                  {artificialLiftTypes.map((liftType) => (
+                    <TouchableOpacity
+                      key={liftType}
+                      style={[
+                        styles.pickerOption,
+                        formData.artificialLiftType === liftType && styles.pickerOptionSelected
+                      ]}
+                      onPress={() => handleInputChange('artificialLiftType', liftType)}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        formData.artificialLiftType === liftType && styles.pickerOptionTextSelected
+                      ]}>
+                        {liftType}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
                 <Text style={styles.label}>API *</Text>
                 <TextInput
@@ -673,6 +864,116 @@ const WellTestScreen = ({ user, navigation }) => {
                   value={formData.testDate}
                   onChangeText={(value) => handleInputChange('testDate', value)}
                   placeholder="YYYY-MM-DD"
+                />
+              </View>
+
+              {/* Production Data */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Production Data</Text>
+                
+                <Text style={styles.label}>Flow Rate (bbl/day)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.flowRate}
+                  onChangeText={(value) => handleInputChange('flowRate', value)}
+                  placeholder="Enter flow rate"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.label}>Gas Rate (scf/day)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.gasRate}
+                  onChangeText={(value) => handleInputChange('gasRate', value)}
+                  placeholder="Enter gas rate"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.label}>Water Cut (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.waterCut}
+                  onChangeText={(value) => handleInputChange('waterCut', value)}
+                  placeholder="Enter water cut percentage"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Chemical Analysis */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Chemical Analysis</Text>
+                
+                <Text style={styles.label}>H₂S (ppm)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.h2s}
+                  onChangeText={(value) => handleInputChange('h2s', value)}
+                  placeholder="Enter H2S content"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.label}>CO₂ (ppm)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.co2}
+                  onChangeText={(value) => handleInputChange('co2', value)}
+                  placeholder="Enter CO2 content"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.label}>Salinity (ppm)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.salinity}
+                  onChangeText={(value) => handleInputChange('salinity', value)}
+                  placeholder="Enter salinity"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Wellhead Parameters */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Wellhead Parameters</Text>
+                
+                <Text style={styles.label}>Wellhead Pressure (psi)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.wellheadPressure}
+                  onChangeText={(value) => handleInputChange('wellheadPressure', value)}
+                  placeholder="Enter wellhead pressure"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.label}>Wellhead Temperature (°F)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.wellheadTemperature}
+                  onChangeText={(value) => handleInputChange('wellheadTemperature', value)}
+                  placeholder="Enter wellhead temperature"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.label}>Choke Size (inches)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.chokeSize}
+                  onChangeText={(value) => handleInputChange('chokeSize', value)}
+                  placeholder="Enter choke size"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Notes */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Additional Notes</Text>
+                
+                <TextInput
+                  style={[styles.input, styles.notesInput]}
+                  value={formData.notes}
+                  onChangeText={(value) => handleInputChange('notes', value)}
+                  placeholder="Enter any additional notes..."
+                  multiline
+                  numberOfLines={4}
                 />
               </View>
 
@@ -714,22 +1015,228 @@ const WellTestScreen = ({ user, navigation }) => {
               <ScrollView style={styles.modalContent}>
                 <View style={styles.viewSection}>
                   <Text style={styles.viewSectionTitle}>Basic Information</Text>
-                  <Text style={styles.viewText}>Well: {selectedWell.wellNumber}</Text>
-                  <Text style={styles.viewText}>API: {selectedWell.api}</Text>
-                  <Text style={styles.viewText}>Date: {selectedWell.testDate}</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Well Number:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellNumber}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Well Type:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellType}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Artificial Lift Type:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.artificialLiftType || 'Natural Flow'}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>API:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.api}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Test Date:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.testDate}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Production Data</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Flow Rate:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.flowRate} bbl/day</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Gas Rate:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.gasRate} scf/day</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Water Cut:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.waterCut}%</Text>
+                  </View>
+                </View>
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Chemical Analysis</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>H₂S:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.h2s} ppm</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>CO₂:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.co2} ppm</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Salinity:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.salinity} ppm</Text>
+                  </View>
+                </View>
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Wellhead Parameters</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Wellhead Pressure:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellheadPressure} psi</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Wellhead Temperature:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellheadTemperature} °F</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Choke Size:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.chokeSize} inches</Text>
+                  </View>
+                </View>
+
+                {selectedWell.notes && (
+                  <View style={styles.viewSection}>
+                    <Text style={styles.viewSectionTitle}>Notes</Text>
+                    <Text style={styles.viewNotes}>{selectedWell.notes}</Text>
+                  </View>
+                )}
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Creation Info</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Created By:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.createdByName}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Role:</Text>
+                    <Text style={styles.viewValue}>
+                      {ROLE_INFO[selectedWell.userRole]?.name || selectedWell.userRole}
+                    </Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Created:</Text>
+                    <Text style={styles.viewValue}>
+                      {selectedWell.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                    </Text>
+                  </View>
                 </View>
               </ScrollView>
             )}
           </View>
         </Modal>
 
-        {/* Oil Separator Diagram Modal */}
-        <OilSeparatorDiagram
-          visible={showSeparatorDiagram}
-          onClose={() => setShowSeparatorDiagram(false)}
-          onSelectionChange={handleSeparatorSelection}
-          selectedParts={selectedSeparatorParts}
-        />
+        {/* View Modal */}
+        <Modal
+          visible={showViewModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Well Test Details</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowViewModal(false)}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedWell && (
+              <ScrollView style={styles.modalContent}>
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Basic Information</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Well Number:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellNumber}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Well Type:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellType}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Artificial Lift Type:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.artificialLiftType || 'Natural Flow'}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>API:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.api}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Test Date:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.testDate}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Production Data</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Flow Rate:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.flowRate} bbl/day</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Gas Rate:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.gasRate} scf/day</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Water Cut:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.waterCut}%</Text>
+                  </View>
+                </View>
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Chemical Analysis</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>H₂S:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.h2s} ppm</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>CO₂:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.co2} ppm</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Salinity:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.salinity} ppm</Text>
+                  </View>
+                </View>
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Wellhead Parameters</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Wellhead Pressure:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellheadPressure} psi</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Wellhead Temperature:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.wellheadTemperature} °F</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Choke Size:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.chokeSize} inches</Text>
+                  </View>
+                </View>
+
+                {selectedWell.notes && (
+                  <View style={styles.viewSection}>
+                    <Text style={styles.viewSectionTitle}>Notes</Text>
+                    <Text style={styles.viewNotes}>{selectedWell.notes}</Text>
+                  </View>
+                )}
+
+                <View style={styles.viewSection}>
+                  <Text style={styles.viewSectionTitle}>Creation Info</Text>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Created By:</Text>
+                    <Text style={styles.viewValue}>{selectedWell.createdByName}</Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Role:</Text>
+                    <Text style={styles.viewValue}>
+                      {ROLE_INFO[selectedWell.userRole]?.name || selectedWell.userRole}
+                    </Text>
+                  </View>
+                  <View style={styles.viewRow}>
+                    <Text style={styles.viewLabel}>Created:</Text>
+                    <Text style={styles.viewValue}>
+                      {selectedWell.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </Modal>
       </View>
     </ProtectedComponent>
   );
@@ -823,15 +1330,7 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#fff',
   },
-  content: {
-    flex: 1,
-  },
-  readingsContent: {
-    flex: 1,
-  },
   wellNumberSection: {
-    padding: 20,
-    backgroundColor: '#fff',
     marginBottom: 10,
   },
   wellNumberLabel: {
@@ -839,6 +1338,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
+  },
+  content: {
+    flex: 1,
   },
   contentHeader: {
     flexDirection: 'row',
@@ -864,6 +1366,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  readingsContent: {
+    flex: 1,
+  },
   maintenanceContent: {
     flex: 1,
   },
@@ -872,48 +1377,6 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  openDiagramButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginTop: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  openDiagramButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  componentsList: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  componentCategory: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  categoryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  categoryDesc: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 18,
   },
   blueprintContainer: {
     backgroundColor: '#fff',
@@ -1014,70 +1477,166 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
+    justifyContent: 'space-around',
     marginBottom: 20,
   },
-  separatorButton: {
-    backgroundColor: '#FF9800',
+  quickActionButton: {
+    backgroundColor: '#007AFF',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderRadius: 6,
-    flex: 1,
   },
-  separatorButtonText: {
+  quickActionText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
   },
   clearReportButton: {
     backgroundColor: '#FF6B6B',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderRadius: 6,
-    flex: 1,
   },
   clearReportButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
   },
-  selectedPartsContainer: {
+  partsContainer: {
+    marginBottom: 24,
+  },
+  partItem: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
   },
-  selectedPartsTitle: {
+  partItemSelected: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#f8fffe',
+  },
+  partItemDisabled: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#d0d0d0',
+  },
+  partHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  partIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  partInfo: {
+    flex: 1,
+  },
+  partTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 12,
-  },
-  selectedPartsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  selectedPartChip: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
     marginBottom: 4,
   },
-  selectedPartText: {
+  partTitleSelected: {
+    color: '#4CAF50',
+  },
+  partTitleDisabled: {
+    color: '#999',
+  },
+  partDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  partDescriptionDisabled: {
+    color: '#aaa',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  checkboxDisabled: {
+    backgroundColor: '#f0f0f0',
+    borderColor: '#ccc',
+  },
+  checkmark: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+    fontWeight: 'bold',
+  },
+  noDataText: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  previewContainer: {
+    marginBottom: 24,
+  },
+  preview: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  previewHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 8,
+  },
+  previewSection: {
+    marginBottom: 16,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 8,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  previewLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  previewValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+  },
+  notesContainer: {
+    marginBottom: 24,
+  },
+  notesInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    height: 100,
+    textAlignVertical: 'top',
   },
   generateReportButton: {
     backgroundColor: '#4CAF50',
@@ -1085,6 +1644,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 20,
+  },
+  generateReportButtonDisabled: {
+    backgroundColor: '#ccc',
   },
   generateReportButtonText: {
     color: '#fff',
@@ -1296,6 +1858,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fafafa',
   },
+  notesInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  pickerOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  pickerOptionSelected: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  pickerOptionText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  pickerOptionTextSelected: {
+    color: '#fff',
+  },
   submitButton: {
     backgroundColor: '#4CAF50',
     padding: 16,
@@ -1327,10 +1919,28 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ddd',
     paddingBottom: 4,
   },
-  viewText: {
+  viewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  viewLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+    flex: 1,
+  },
+  viewValue: {
     fontSize: 14,
     color: '#333',
-    marginBottom: 8,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'right',
+  },
+  viewNotes: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });
 
