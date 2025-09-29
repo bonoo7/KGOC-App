@@ -22,6 +22,8 @@ import {
 } from '../services/wellServicesService';
 import { AdvancedReportsService } from '../services/advancedReportsService';
 import { NotificationService } from '../services/notificationService';
+import AdvancedReportsModal from '../components/AdvancedReportsModal';
+import NotificationCenter from '../components/NotificationCenter';
 
 const WellServicesScreen = ({ user, navigation }) => {
   const [userRole, setUserRole] = useState(null);
@@ -40,6 +42,8 @@ const WellServicesScreen = ({ user, navigation }) => {
   const [notifications, setNotifications] = useState([]);
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [showAdvancedReports, setShowAdvancedReports] = useState(false);
 
   // Service Request Form Data
   const [formData, setFormData] = useState({
@@ -104,8 +108,13 @@ const WellServicesScreen = ({ user, navigation }) => {
 
   const loadNotifications = async () => {
     try {
-      const userNotifications = await NotificationService.getUserNotifications(user?.uid);
-      setNotifications(userNotifications);
+      const result = await NotificationService.getUserNotifications(user.uid, 20);
+      if (result.success) {
+        setNotifications(result.notifications);
+        // Count unread notifications
+        const unreadCount = result.notifications.filter(n => !n.read).length;
+        setUnreadNotificationsCount(unreadCount);
+      }
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
@@ -266,7 +275,7 @@ const WellServicesScreen = ({ user, navigation }) => {
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   };
 
-  const loadNotifications = async () => {
+  const refreshNotifications = async () => {
     try {
       const result = await NotificationService.getUserNotifications(user.uid, 20);
       if (result.success) {
@@ -307,7 +316,7 @@ const WellServicesScreen = ({ user, navigation }) => {
       };
       
       await NotificationService.createNotification(notificationData);
-      await loadNotifications(); // Refresh notifications
+      await refreshNotifications(); // Refresh notifications
     } catch (error) {
       console.error('Error creating notification:', error);
     }
@@ -339,7 +348,7 @@ const WellServicesScreen = ({ user, navigation }) => {
       }
 
       Alert.alert('نجح', 'تم إرسال تذكيرات الصيانة');
-      await loadNotifications();
+      await refreshNotifications();
     } catch (error) {
       console.error('Error sending maintenance reminders:', error);
       Alert.alert('خطأ', 'فشل في إرسال التذكيرات');
@@ -382,28 +391,7 @@ const WellServicesScreen = ({ user, navigation }) => {
     }
   };
 
-  const generatePerformanceReport = () => {
-    const report = {
-      totalRequests: serviceRequests.length,
-      byStatus: SERVICE_STATUS_OPTIONS.reduce((acc, status) => {
-        acc[status.key] = serviceRequests.filter(req => req.status === status.key).length;
-        return acc;
-      }, {}),
-      byPriority: PRIORITY_LEVELS.reduce((acc, priority) => {
-        acc[priority.key] = serviceRequests.filter(req => req.priority === priority.key).length;
-        return acc;
-      }, {}),
-      byServiceType: SERVICE_TYPES.reduce((acc, type) => {
-        acc[type] = serviceRequests.filter(req => req.serviceType === type).length;
-        return acc;
-      }, {}),
-      avgCompletionTime: calculateAverageCompletionTime(),
-      completionRate: calculateCompletionRate()
-    };
-    
-    setPerformanceData(report);
-    setShowReportsModal(true);
-  };
+
 
   const calculateAverageCompletionTime = () => {
     const completedRequests = serviceRequests.filter(req => req.status === 'completed');
@@ -1008,6 +996,21 @@ const WellServicesScreen = ({ user, navigation }) => {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Advanced Reports Modal */}
+      <AdvancedReportsModal
+        visible={showAdvancedReports}
+        onClose={() => setShowAdvancedReports(false)}
+        serviceRequests={serviceRequests}
+        performanceData={performanceData}
+      />
+
+      {/* Enhanced Notification Center */}
+      <NotificationCenter
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        user={user}
+      />
     </View>
   );
 };
