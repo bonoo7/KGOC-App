@@ -393,24 +393,7 @@ const WellServicesScreen = ({ user, navigation }) => {
 
 
 
-  const calculateAverageCompletionTime = () => {
-    const completedRequests = serviceRequests.filter(req => req.status === 'completed');
-    if (completedRequests.length === 0) return 0;
-    
-    const totalTime = completedRequests.reduce((acc, req) => {
-      const created = new Date(req.createdAt);
-      const completed = new Date(req.lastUpdated);
-      return acc + (completed - created);
-    }, 0);
-    
-    return Math.round(totalTime / completedRequests.length / (1000 * 60 * 60 * 24)); // days
-  };
 
-  const calculateCompletionRate = () => {
-    if (serviceRequests.length === 0) return 0;
-    const completed = serviceRequests.filter(req => req.status === 'completed').length;
-    return Math.round((completed / serviceRequests.length) * 100);
-  };
 
   const renderServiceRequest = ({ item }) => {
     const statusInfo = STATUS_OPTIONS.find(s => s.key === item.status);
