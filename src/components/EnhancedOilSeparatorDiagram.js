@@ -663,32 +663,3 @@ const styles = StyleSheet.create({
 });
 
 export default EnhancedOilSeparatorDiagram;
-    marginBottom: 4,
-    textAlign: 'right'
-  },
-  solutionText: {
-    fontSize: 12,
-    color: '#333',
-    marginBottom: 2,
-    textAlign: 'right'
-  },
-  safetyText: {
-    fontSize: 14,
-    color: '#F44336',
-    marginBottom: 4,
-    textAlign: 'right'
-  },
-  exportButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6
-  },
-  exportButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600'
-  }
-});
-
-export default EnhancedOilSeparatorDiagram;

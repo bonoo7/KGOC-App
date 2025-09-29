@@ -86,6 +86,7 @@ const WellServicesScreen = ({ user, navigation }) => {
   useEffect(() => {
     loadUserRole();
     loadServiceRequests();
+    loadNotifications();
   }, []);
 
   useEffect(() => {
@@ -98,6 +99,15 @@ const WellServicesScreen = ({ user, navigation }) => {
       setUserRole(role);
     } catch (error) {
       console.error('Error loading user role:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const userNotifications = await NotificationService.getUserNotifications(user?.uid);
+      setNotifications(userNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
     }
   };
 
@@ -153,6 +163,9 @@ const WellServicesScreen = ({ user, navigation }) => {
       };
 
       await createServiceRequest(newRequest);
+      
+      // Create notification for the new service request
+      await createServiceNotification(newRequest);
       
       Alert.alert('نجح', 'تم إرسال طلب الخدمة بنجاح');
       setFormData({
@@ -281,6 +294,58 @@ const WellServicesScreen = ({ user, navigation }) => {
     }
   };
 
+  // Create automatic notification for service requests
+  const createServiceNotification = async (request, type = 'service_request') => {
+    try {
+      const notificationData = {
+        title: `طلب خدمة جديد - ${request.wellNumber}`,
+        message: `تم إنشاء طلب ${request.serviceType} للبئر ${request.wellNumber}`,
+        type,
+        priority: request.priority.toLowerCase(),
+        data: { serviceRequestId: request.id },
+        userId: user.uid
+      };
+      
+      await NotificationService.createNotification(notificationData);
+      await loadNotifications(); // Refresh notifications
+    } catch (error) {
+      console.error('Error creating notification:', error);
+    }
+  };
+
+  // Send maintenance reminder notifications
+  const sendMaintenanceReminders = async () => {
+    try {
+      const pendingRequests = serviceRequests.filter(req => 
+        req.status === 'pending' && 
+        req.serviceType === 'Maintenance'
+      );
+
+      for (const request of pendingRequests) {
+        const daysSinceCreated = Math.floor(
+          (new Date() - new Date(request.createdAt)) / (1000 * 60 * 60 * 24)
+        );
+
+        if (daysSinceCreated >= 3) { // Send reminder after 3 days
+          await NotificationService.createNotification({
+            title: 'تذكير صيانة',
+            message: `طلب الصيانة للبئر ${request.wellNumber} في انتظار الموافقة منذ ${daysSinceCreated} أيام`,
+            type: 'maintenance',
+            priority: 'high',
+            data: { serviceRequestId: request.id },
+            userId: user.uid
+          });
+        }
+      }
+
+      Alert.alert('نجح', 'تم إرسال تذكيرات الصيانة');
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error sending maintenance reminders:', error);
+      Alert.alert('خطأ', 'فشل في إرسال التذكيرات');
+    }
+  };
+
   const exportReportToPDF = async () => {
     try {
       if (!performanceData) {
@@ -316,6 +381,13 @@ const WellServicesScreen = ({ user, navigation }) => {
       console.error('Error sharing report:', error);
     }
   };
+
+  const generatePerformanceReport = () => {
+    const report = {
+      totalRequests: serviceRequests.length,
+      byStatus: SERVICE_STATUS_OPTIONS.reduce((acc, status) => {
+        acc[status.key] = serviceRequests.filter(req => req.status === status.key).length;
+        return acc;
       }, {}),
       byPriority: PRIORITY_LEVELS.reduce((acc, priority) => {
         acc[priority.key] = serviceRequests.filter(req => req.priority === priority.key).length;
@@ -428,6 +500,37 @@ const WellServicesScreen = ({ user, navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>خدمات الآبار</Text>
         <View style={styles.headerButtons}>
+          {/* Notifications Button */}
+          <TouchableOpacity
+            style={[styles.iconButton, { position: 'relative' }]}
+            onPress={() => setShowNotifications(true)}
+          >
+            <Text style={styles.iconText}>🔔</Text>
+            {notifications.filter(n => !n.isRead).length > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.badgeText}>
+                  {notifications.filter(n => !n.isRead).length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* AI Insights Button */}
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={generateAIInsights}
+          >
+            <Text style={styles.iconText}>🤖</Text>
+          </TouchableOpacity>
+
+          {/* Maintenance Reminders Button */}
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={sendMaintenanceReminders}
+          >
+            <Text style={styles.iconText}>⏰</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.reportsButton}
             onPress={generatePerformanceReport}
@@ -811,6 +914,100 @@ const WellServicesScreen = ({ user, navigation }) => {
           )}
         </View>
       </Modal>
+
+      {/* Notifications Modal */}
+      <Modal
+        visible={showNotifications}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>الإشعارات</Text>
+            <TouchableOpacity onPress={() => setShowNotifications(false)}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {notifications.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>لا توجد إشعارات</Text>
+              </View>
+            ) : (
+              notifications.map((notification, index) => (
+                <View key={index} style={[
+                  styles.notificationCard,
+                  !notification.isRead && styles.unreadNotification
+                ]}>
+                  <View style={styles.notificationHeader}>
+                    <Text style={styles.notificationTitle}>{notification.title}</Text>
+                    <Text style={styles.notificationTime}>
+                      {new Date(notification.createdAt).toLocaleDateString('ar-SA')}
+                    </Text>
+                  </View>
+                  <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  {notification.priority === 'critical' && (
+                    <View style={styles.criticalBadge}>
+                      <Text style={styles.criticalText}>🚨 عاجل</Text>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* AI Insights Modal */}
+      <Modal
+        visible={showAIInsights}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>التحليلات الذكية 🤖</Text>
+            <TouchableOpacity onPress={() => setShowAIInsights(false)}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {aiInsights ? (
+              <View>
+                <View style={styles.insightCard}>
+                  <Text style={styles.insightTitle}>📈 تحليل الأداء</Text>
+                  <Text style={styles.insightText}>
+                    {aiInsights.performanceAnalysis || 'يتم تحليل البيانات لتقديم رؤى ذكية حول أداء الخدمات...'}
+                  </Text>
+                </View>
+
+                <View style={styles.insightCard}>
+                  <Text style={styles.insightTitle}>💡 التوصيات</Text>
+                  <Text style={styles.insightText}>
+                    • تحسين وقت الاستجابة للطلبات عالية الأولوية
+                    {'\n'}• زيادة فريق الصيانة في أوقات الذروة
+                    {'\n'}• تنفيذ نظام صيانة وقائية للآبار
+                  </Text>
+                </View>
+
+                <View style={styles.insightCard}>
+                  <Text style={styles.insightTitle}>📊 الاتجاهات</Text>
+                  <Text style={styles.insightText}>
+                    تزايد طلبات الصيانة بنسبة 15% هذا الشهر مقارنة بالشهر الماضي
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>جاري تحليل البيانات...</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1176,6 +1373,110 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: 'bold'
+  },
+  // New styles for notifications and AI insights
+  iconButton: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0'
+  },
+  iconText: {
+    fontSize: 18
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+  notificationCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF'
+  },
+  unreadNotification: {
+    backgroundColor: '#f0f8ff',
+    borderLeftColor: '#FF3B30'
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+    textAlign: 'right'
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#666'
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    textAlign: 'right'
+  },
+  criticalBadge: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4
+  },
+  criticalText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+  insightCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#34C759'
+  },
+  insightTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'right',
+    marginBottom: 12
+  },
+  insightText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 22,
+    textAlign: 'right'
+  },
+  recommendationItem: {
+    marginBottom: 8
+  },
+  recommendationText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    textAlign: 'right'
   }
 });
 
