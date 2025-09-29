@@ -15,6 +15,7 @@ import { getUserRole, hasPermission, PERMISSIONS, ROLE_INFO } from '../services/
 import { ProtectedComponent } from '../components/RoleBasedAccess';
 import WellNumberInput from '../components/WellNumberInput';
 import OilSeparatorDiagram from '../components/OilSeparatorDiagram';
+import EnhancedOilSeparatorDiagram from '../components/EnhancedOilSeparatorDiagram';
 import { 
   createWellTest, 
   getAllWellTests, 
@@ -36,6 +37,7 @@ const WellTestScreen = ({ user, navigation }) => {
   const [selectedWellNumber, setSelectedWellNumber] = useState('');
   const [reportWellData, setReportWellData] = useState(null);
   const [showSeparatorDiagram, setShowSeparatorDiagram] = useState(false);
+  const [showEnhancedSeparator, setShowEnhancedSeparator] = useState(false);
   const [selectedSeparatorParts, setSelectedSeparatorParts] = useState([]);
 
   // Form state for new/edit well test
@@ -534,7 +536,14 @@ const WellTestScreen = ({ user, navigation }) => {
                     style={styles.openDiagramButton}
                     onPress={() => setShowSeparatorDiagram(true)}
                   >
-                    <Text style={styles.openDiagramButtonText}>Open Separator Diagram</Text>
+                    <Text style={styles.openDiagramButtonText}>📊 Basic Separator</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.openDiagramButton, styles.enhancedButton]}
+                    onPress={() => setShowEnhancedSeparator(true)}
+                  >
+                    <Text style={styles.openDiagramButtonText}>🚀 Enhanced Separator</Text>
                   </TouchableOpacity>
                   
                   <View style={styles.blueprintContainer}>
@@ -730,6 +739,14 @@ const WellTestScreen = ({ user, navigation }) => {
           onSelectionChange={handleSeparatorSelection}
           selectedParts={selectedSeparatorParts}
         />
+
+        {/* Enhanced Oil Separator Diagram Modal */}
+        <EnhancedOilSeparatorDiagram
+          visible={showEnhancedSeparator}
+          onClose={() => setShowEnhancedSeparator(false)}
+          onSelectionChange={handleSeparatorSelection}
+          selectedParts={selectedSeparatorParts}
+        />
       </View>
     </ProtectedComponent>
   );
@@ -888,9 +905,13 @@ const styles = StyleSheet.create({
   },
   openDiagramButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  enhancedButton: {
+    backgroundColor: '#FF9800',
+    marginTop: 10,
   },
   componentsList: {
     width: '100%',

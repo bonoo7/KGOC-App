@@ -101,11 +101,16 @@ const DashboardScreen = ({ user, navigation }) => {
       return;
     }
 
-    Alert.alert(
-      'Well Services',
-      'Well Services include:\n\n• Maintenance & Repairs ✅\n• Equipment Installation ✅\n• Emergency Response ✅\n• Technical Support ✅\n• Inspection Services ✅\n\nYour role allows access to these services.',
-      [{ text: 'Continue', style: 'default' }]
-    );
+    // Navigate to Well Services screen
+    if (navigation && navigation.navigate) {
+      navigation.navigate('WellServices');
+    } else {
+      Alert.alert(
+        'Well Services',
+        'Well Services include:\n\n• Maintenance & Repairs ✅\n• Equipment Installation ✅\n• Emergency Response ✅\n• Technical Support ✅\n• Inspection Services ✅\n\nYour role allows access to these services.',
+        [{ text: 'Continue', style: 'default' }]
+      );
+    }
   };
 
   const handleAdministrations = () => {
@@ -118,11 +123,16 @@ const DashboardScreen = ({ user, navigation }) => {
       return;
     }
 
-    Alert.alert(
-      'Administrative Services',
-      'Administrative services include:\n\n• Document Management ✅\n• Permits & Licensing ✅\n• Compliance Tracking ✅\n• Staff Management ✅\n• Reporting Systems ✅\n\nYour role allows access to these features.',
-      [{ text: 'Continue', style: 'default' }]
-    );
+    // Navigate to Administration screen
+    if (navigation && navigation.navigate) {
+      navigation.navigate('Administration');
+    } else {
+      Alert.alert(
+        'Administration',
+        'Administrative Services include:\n\n• User Management ✅\n• System Settings ✅\n• Reports & Analytics ✅\n• Audit Logs ✅\n• Security Management ✅\n\nYour role allows access to these administrative features.',
+        [{ text: 'Continue', style: 'default' }]
+      );
+    }
   };
 
   if (isLoading) {
