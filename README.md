@@ -388,6 +388,12 @@ generateMaintenanceSchedule(component)
 - **iOS**: دعم كامل لـ iOS 11.0+
 - **Expo Go**: اختبار فوري على الأجهزة
 
+### 🤖 الذكاء الاصطناعي - AI Models
+- **الحالة الحالية**: لا توجد نماذج ذكاء اصطناعي مدمجة حالياً
+- **التقنيات المستخدمة**: React Native + Firebase + Local Storage
+- **التوثيق الكامل**: راجع [`AI_MODELS_DOCUMENTATION.md`](./AI_MODELS_DOCUMENTATION.md)
+- **إمكانيات مستقبلية**: تحليلات تنبؤية، معالجة اللغة الطبيعية، رؤية حاسوبية
+
 ## 🚀 البدء السريع - Getting Started
 
 ### المتطلبات الأساسية
@@ -536,6 +542,7 @@ eas build -p ios
 - [`COMPLETED_FEATURES.md`](./COMPLETED_FEATURES.md) - سجل الميزات المكتملة
 - [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) - سجل التطوير اليومي
 - [`MOBILE_SETUP.md`](./MOBILE_SETUP.md) - دليل إعداد الموبايل
+- [`AI_MODELS_DOCUMENTATION.md`](./AI_MODELS_DOCUMENTATION.md) - توثيق نماذج الذكاء الاصطناعي
 
 ### الواجهات البرمجية
 
@@ -605,6 +612,18 @@ getUserSettings(userId)
 - خطوات إعادة إنتاج المشكلة
 - لقطات شاشة (إن أمكن)
 - معلومات البيئة (OS, Browser, Device)
+
+## ❓ الأسئلة الشائعة - FAQ
+
+### Q: Which AI model do you use? / أي نموذج ذكاء اصطناعي تستخدمون؟
+**A:** Currently, the KGOC App **does not use any AI models**. The application is built using React Native, Firebase, and local storage for standard CRUD operations. For complete details, see [`AI_MODELS_DOCUMENTATION.md`](./AI_MODELS_DOCUMENTATION.md).
+
+**الجواب:** حالياً، تطبيق KGOC **لا يستخدم أي نماذج ذكاء اصطناعي**. التطبيق مبني باستخدام React Native و Firebase والتخزين المحلي للعمليات الأساسية. للتفاصيل الكاملة، راجع [`AI_MODELS_DOCUMENTATION.md`](./AI_MODELS_DOCUMENTATION.md).
+
+### Q: Will you add AI features in the future? / هل ستضيفون ميزات الذكاء الاصطناعي مستقبلاً؟
+**A:** Yes, there are plans for potential AI integration including predictive analytics, NLP, and computer vision for well operations optimization.
+
+**الجواب:** نعم، هناك خطط لإمكانية دمج الذكاء الاصطناعي مستقبلاً بما في ذلك التحليلات التنبؤية ومعالجة اللغة الطبيعية والرؤية الحاسوبية لتحسين عمليات الآبار.
 
 ## 📜 الترخيص - License
 
