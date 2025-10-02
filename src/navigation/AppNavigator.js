@@ -10,11 +10,13 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreenNew from '../screens/SettingsScreenNew';
 import RoleManagementScreen from '../screens/RoleManagementScreen';
 import WellTestScreen from '../screens/WellTestScreen';
+import WellServicesScreen from '../screens/WellServicesScreen';
+import AdministrationScreen from '../screens/AdministrationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Dashboard Stack Navigator (includes Well Test)
+// Dashboard Stack Navigator (includes Well Test, Well Services, Administration)
 const DashboardStack = ({ user }) => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -23,6 +25,12 @@ const DashboardStack = ({ user }) => {
       </Stack.Screen>
       <Stack.Screen name="WellTest">
         {(props) => <WellTestScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="WellServices">
+        {(props) => <WellServicesScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="Administration">
+        {(props) => <AdministrationScreen {...props} user={user} />}
       </Stack.Screen>
     </Stack.Navigator>
   );

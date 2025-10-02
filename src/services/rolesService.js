@@ -1,5 +1,5 @@
 // User roles and permissions service
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // Define user roles and their permissions
@@ -40,11 +40,17 @@ export const PERMISSIONS = {
   ADMIN_EDIT: 'admin_edit',
   ADMIN_DELETE: 'admin_delete',
   ADMIN_REPORTS: 'admin_reports',
+  ADMIN_ACCESS: 'admin_access',
   
   // System permissions
   USER_MANAGEMENT: 'user_management',
   SYSTEM_SETTINGS: 'system_settings',
-  AUDIT_LOGS: 'audit_logs'
+  AUDIT_LOGS: 'audit_logs',
+  
+  // Notification permissions
+  NOTIFICATION_CREATE: 'notification_create',
+  NOTIFICATION_SEND: 'notification_send',
+  NOTIFICATION_MANAGE: 'notification_manage'
 };
 
 // Role permissions mapping
@@ -106,7 +112,10 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.ADMIN_EDIT,
     PERMISSIONS.ADMIN_DELETE,
     PERMISSIONS.ADMIN_REPORTS,
-    PERMISSIONS.USER_MANAGEMENT
+    PERMISSIONS.ADMIN_ACCESS,
+    PERMISSIONS.USER_MANAGEMENT,
+    PERMISSIONS.NOTIFICATION_CREATE,
+    PERMISSIONS.NOTIFICATION_SEND
   ],
   
   [USER_ROLES.ADMIN]: [
@@ -563,7 +572,7 @@ export const checkIfFirstUser = async () => {
     // Check Firebase first for existing users
     if (typeof db !== 'undefined') {
       try {
-        const { collection, getDocs, query, limit } = await import('firebase/firestore');
+        // Firebase modules are now imported at the top
         
         // Check userRoles collection for any existing users
         const userRolesQuery = query(collection(db, 'userRoles'), limit(1));
